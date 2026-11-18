@@ -44,7 +44,7 @@ router.get("/", requireRole("reviewer", "admin"), async (req, res) => {
   } catch (e) { fail(res, e); }
 });
 
-// One petition with its students and review history
+// One petition with its students and complete decision history
 router.get("/:id", async (req, res) => {
   try {
     const petition = await Petition.findById(req.params.id).populate("requestedBy", "fullName email");
@@ -52,27 +52,36 @@ router.get("/:id", async (req, res) => {
     if (req.user.role === "student" && String(petition.requestedBy._id) !== req.user.id)
       return res.status(403).json({ message: "Not allowed." });
     const students = await PetitionStudent.find({ petitionId: petition._id });
-    const approvals = await Approval.find({ petitionId: petition._id }).sort({ decidedAt: 1 });
+    const approvals = await Approval.find({ petitionId: petition._id })
+      .populate("reviewerId", "fullName")
+      .populate("adminId", "fullName")
+      .sort({ decidedAt: 1 });
     res.json({ petition, students, approvals });
   } catch (e) { fail(res, e); }
 });
 
-// Reviewer records a decision
+// Reviewer records an initial review decision. Final approval is reserved for admins.
 router.post("/:id/decision", requireRole("reviewer"), async (req, res) => {
   try {
     const { decision, comments } = req.body;
-    if (!["Under Review", "Returned", "Approved", "Rejected"].includes(decision))
-      return res.status(400).json({ message: "Invalid decision." });
+    if (!["Under Review", "Returned", "Endorsed", "Rejected"].includes(decision))
+      return res.status(400).json({ message: "Invalid reviewer decision." });
     const petition = await Petition.findById(req.params.id);
     if (!petition) return res.status(404).json({ message: "Petition not found." });
+    if (!["Pending", "Under Review", "Returned"].includes(petition.status))
+      return res.status(400).json({ message: "This petition is no longer in the reviewer queue." });
 
-    await Approval.create({ petitionId: petition._id, reviewerId: req.user.id, decision, comments });
+    await Approval.create({
+      petitionId: petition._id, reviewerId: req.user.id, stage: 1, decision, comments
+    });
     petition.status = decision;
     await petition.save();
     await Notification.create({
       userId: petition.requestedBy,
       petitionId: petition._id,
-      message: `Your petition for ${petition.subjectCode} is now: ${decision}.`
+      message: decision === "Endorsed"
+        ? `Your petition for ${petition.subjectCode} was endorsed and sent to the admin for final approval.`
+        : `Your petition for ${petition.subjectCode} is now: ${decision}.`
     });
     res.json(petition);
   } catch (e) { fail(res, e); }
