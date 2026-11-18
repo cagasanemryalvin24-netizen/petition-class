@@ -18,7 +18,7 @@
   <h2 id="title"></h2>
   <p id="reason"></p>
   <p><b>Participants:</b> <span id="people"></span></p>
-  <h3>History</h3><ul id="history"></ul>
+  <h3>History</h3><ul id="approvalHistory"></ul>
   <h3>Record a review decision</h3>
   <select id="decision">
     <option>Under Review</option><option>Returned</option><option>Endorsed</option><option>Rejected</option>
@@ -54,7 +54,7 @@ async function openPetition(id) {
   title.textContent = `${d.petition.subjectCode} - ${d.petition.subjectName} (${d.petition.semester}, ${d.petition.academicYear})`;
   reason.textContent = "Reason: " + d.petition.reason;
   people.textContent = d.students.map(s => s.studentName).join(", ") || "none listed";
-  history.innerHTML = d.approvals.map(a => {
+  approvalHistory.innerHTML = d.approvals.map(a => {
     const actor = a.adminId?.fullName || a.reviewerId?.fullName || "Reviewer";
     return `<li>${fmt(a.decidedAt)} - <b>${esc(actor)}</b>: ${badge(a.decision)} ${esc(a.comments || "")}</li>`;
   }).join("") || "<li>No decisions yet.</li>";
