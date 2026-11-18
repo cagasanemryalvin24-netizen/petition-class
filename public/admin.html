@@ -15,7 +15,7 @@
   <h2 id="petitionTitle"></h2>
   <p id="petitionReason"></p>
   <p><b>Participants:</b> <span id="participants"></span></p>
-  <h3>Review and decision history</h3><ul id="history"></ul>
+  <h3>Review and decision history</h3><ul id="approvalHistory"></ul>
   <h3>Admin final decision</h3>
   <p>Choose whether to approve or reject this endorsed petition. An explanation is required.</p>
   <select id="finalDecision"><option>Approved</option><option>Rejected</option></select>
@@ -55,7 +55,7 @@ async function openPetition(id) {
   petitionTitle.textContent = `${d.petition.subjectCode} - ${d.petition.subjectName} (${d.petition.semester}, ${d.petition.academicYear})`;
   petitionReason.textContent = "Reason: " + d.petition.reason;
   participants.textContent = d.students.map(s => s.studentName).join(", ") || "none listed";
-  history.innerHTML = d.approvals.map(a => {
+  approvalHistory.innerHTML = d.approvals.map(a => {
     const actor = a.adminId?.fullName || a.reviewerId?.fullName || "Reviewer";
     return `<li>${fmt(a.decidedAt)} - <b>${esc(actor)}</b>: ${badge(a.decision)} ${esc(a.comments || "")}</li>`;
   }).join("") || "<li>No decisions yet.</li>";
