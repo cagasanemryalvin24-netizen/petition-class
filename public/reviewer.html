@@ -15,7 +15,7 @@
 </div>
 
 <div class="card" id="panel" hidden>
-  <h2 id="title"></h2>
+  <h2 id="petitionHeading"></h2>
   <p id="reason"></p>
   <p><b>Participants:</b> <span id="people"></span></p>
   <h3>History</h3><ul id="approvalHistory"></ul>
@@ -51,7 +51,7 @@ async function openPetition(id) {
   currentId = id;
   const d = await api("/petitions/" + id);
   panel.hidden = false; msg.textContent = "";
-  title.textContent = `${d.petition.subjectCode} - ${d.petition.subjectName} (${d.petition.semester}, ${d.petition.academicYear})`;
+  petitionHeading.textContent = `${d.petition.subjectCode} - ${d.petition.subjectName} (${d.petition.semester}, ${d.petition.academicYear})`;
   reason.textContent = "Reason: " + d.petition.reason;
   people.textContent = d.students.map(s => s.studentName).join(", ") || "none listed";
   approvalHistory.innerHTML = d.approvals.map(a => {
