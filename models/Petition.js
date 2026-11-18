@@ -8,7 +8,7 @@ const petitionSchema = new mongoose.Schema({
   requestedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
   status: {
     type: String,
-    enum: ["Pending", "Under Review", "Returned", "Approved", "Rejected"],
+    enum: ["Pending", "Under Review", "Returned", "Endorsed", "Approved", "Rejected"],
     default: "Pending"
   }
 }, { timestamps: true });
