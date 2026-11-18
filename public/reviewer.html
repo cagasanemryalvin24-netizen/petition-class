@@ -8,7 +8,7 @@
   <select id="filter" onchange="loadQueue()" style="width:220px">
     <option value="">All statuses</option>
     <option>Pending</option><option>Under Review</option><option>Returned</option>
-    <option>Approved</option><option>Rejected</option>
+    <option>Endorsed</option><option>Rejected</option>
   </select>
   <table><thead><tr><th>Subject</th><th>Requested by</th><th>Status</th><th>Submitted</th><th></th></tr></thead>
   <tbody id="rows"></tbody></table>
@@ -19,13 +19,14 @@
   <p id="reason"></p>
   <p><b>Participants:</b> <span id="people"></span></p>
   <h3>History</h3><ul id="history"></ul>
-  <h3>Record a decision</h3>
+  <h3>Record a review decision</h3>
   <select id="decision">
-    <option>Under Review</option><option>Returned</option><option>Approved</option><option>Rejected</option>
+    <option>Under Review</option><option>Returned</option><option>Endorsed</option><option>Rejected</option>
   </select>
-  <textarea id="comments" rows="3" placeholder="Comments"></textarea>
-  <button onclick="decide()">Submit decision</button>
+  <textarea id="comments" rows="3" placeholder="Comments (optional)"></textarea>
+  <button onclick="decide()">Submit review</button>
   <p id="msg"></p>
+  <p><small>Note: Final approval or rejection is handled by an administrator.</small></p>
 </div>
 
 <script src="common.js"></script>
@@ -34,14 +35,16 @@ guard("reviewer");
 let currentId = null;
 
 async function loadQueue() {
-  const q = filter.value ? "?status=" + encodeURIComponent(filter.value) : "";
-  const list = await api("/petitions" + q);
-  rows.innerHTML = list.map(p => `<tr>
-    <td>${esc(p.subjectCode)} - ${esc(p.subjectName)}</td>
-    <td>${esc(p.requestedBy?.fullName)}</td>
-    <td>${badge(p.status)}</td><td>${fmt(p.createdAt)}</td>
-    <td><button onclick="openPetition('${p._id}')">Open</button></td></tr>`).join("")
-    || "<tr><td colspan='5'>Nothing here.</td></tr>";
+  try {
+    const q = filter.value ? "?status=" + encodeURIComponent(filter.value) : "";
+    const list = await api("/petitions" + q);
+    rows.innerHTML = list.map(p => `<tr>
+      <td>${esc(p.subjectCode)} - ${esc(p.subjectName)}</td>
+      <td>${esc(p.requestedBy?.fullName)}</td>
+      <td>${badge(p.status)}</td><td>${fmt(p.createdAt)}</td>
+      <td><button onclick="openPetition('${p._id}')">Open</button></td></tr>`).join("")
+      || "<tr><td colspan='5'>Nothing here.</td></tr>";
+  } catch (e) { rows.innerHTML = `<tr><td colspan="5">${esc(e.message)}</td></tr>`; }
 }
 
 async function openPetition(id) {
@@ -51,16 +54,24 @@ async function openPetition(id) {
   title.textContent = `${d.petition.subjectCode} - ${d.petition.subjectName} (${d.petition.semester}, ${d.petition.academicYear})`;
   reason.textContent = "Reason: " + d.petition.reason;
   people.textContent = d.students.map(s => s.studentName).join(", ") || "none listed";
-  history.innerHTML = d.approvals.map(a => `<li>${fmt(a.decidedAt)} - ${badge(a.decision)} ${esc(a.comments || "")}</li>`).join("")
-    || "<li>No decisions yet.</li>";
+  history.innerHTML = d.approvals.map(a => {
+    const actor = a.adminId?.fullName || a.reviewerId?.fullName || "Reviewer";
+    return `<li>${fmt(a.decidedAt)} - <b>${esc(actor)}</b>: ${badge(a.decision)} ${esc(a.comments || "")}</li>`;
+  }).join("") || "<li>No decisions yet.</li>";
+  const canReview = ["Pending", "Under Review", "Returned"].includes(d.petition.status);
+  decision.disabled = !canReview;
+  comments.disabled = !canReview;
+  document.querySelector("#panel button").disabled = !canReview;
+  msg.textContent = canReview ? "" : "This petition has already moved past reviewer evaluation.";
   panel.scrollIntoView();
 }
 
 async function decide() {
+  if (!currentId) return;
   try {
     await api(`/petitions/${currentId}/decision`, "POST", { decision: decision.value, comments: comments.value });
-    msg.className = "ok"; msg.textContent = "Decision saved. Student notified.";
-    comments.value = ""; loadQueue(); openPetition(currentId);
+    msg.className = "ok"; msg.textContent = "Review saved. Student notified.";
+    comments.value = ""; await loadQueue(); await openPetition(currentId);
   } catch (e) { msg.className = "msg"; msg.textContent = e.message; }
 }
 loadQueue();
